@@ -24,19 +24,14 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
-import androidx.appcompat.app.AppCompatActivity
 import android.util.Log
 import android.util.Pair
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewTreeObserver
-import android.widget.AdapterView
+import android.widget.*
 import android.widget.AdapterView.OnItemSelectedListener
-import android.widget.ArrayAdapter
-import android.widget.ImageView
-import android.widget.PopupMenu
-import android.widget.Spinner
-import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.common.annotation.KeepName
 import com.google.mlkit.common.model.LocalModel
 import com.google.mlkit.vision.demo.BitmapUtils
@@ -61,10 +56,10 @@ import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.io.IOException
-import java.util.ArrayList
 import kotlin.math.max
 
 /** Activity demonstrating different image detector features with a still image from camera.  */
+@Suppress("DEPRECATION")
 @KeepName
 class StillImageActivity : AppCompatActivity() {
   private var preview: ImageView? = null
@@ -330,15 +325,14 @@ class StillImageActivity : AppCompatActivity() {
       // Clear the overlay first
       graphicOverlay!!.clear()
 
-      val resizedBitmap: Bitmap
-      resizedBitmap = if (selectedSize == SIZE_ORIGINAL) {
+      val resizedBitmap: Bitmap = if (selectedSize == SIZE_ORIGINAL) {
         imageBitmap
       } else {
         // Get the dimensions of the image view
         val targetedSize: Pair<Int, Int> = targetedWidthHeight
 
         // Determine how much to scale down the image
-        val scaleFactor = Math.max(
+        val scaleFactor = max(
           imageBitmap.width.toFloat() / targetedSize.first.toFloat(),
           imageBitmap.height.toFloat() / targetedSize.second.toFloat()
         )
@@ -353,7 +347,7 @@ class StillImageActivity : AppCompatActivity() {
       preview!!.setImageBitmap(resizedBitmap)
       if (imageProcessor != null) {
         graphicOverlay!!.setImageSourceInfo(
-          resizedBitmap.width, resizedBitmap.height, /* isFlipped= */false
+          resizedBitmap.width, resizedBitmap.height, /* isFlipped = */false
         )
         imageProcessor!!.processBitmap(resizedBitmap, graphicOverlay)
       } else {
