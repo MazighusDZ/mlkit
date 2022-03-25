@@ -20,7 +20,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import android.util.Log
 import android.util.Size
 import android.widget.CompoundButton
@@ -28,10 +27,11 @@ import android.widget.ImageView
 import android.widget.Toast
 import android.widget.ToggleButton
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.view.PreviewView
 import com.google.android.gms.common.annotation.KeepName
 import com.google.mlkit.common.model.LocalModel
-import com.google.mlkit.vision.camera.CameraSourceConfig
+import com.google.mlkit.vision.camera.CameraSourceConfig.*
 import com.google.mlkit.vision.camera.CameraXSource
 import com.google.mlkit.vision.camera.DetectionTaskCallback
 import com.google.mlkit.vision.demo.GraphicOverlay
@@ -45,8 +45,7 @@ import com.google.mlkit.vision.objects.DetectedObject
 import com.google.mlkit.vision.objects.ObjectDetection
 import com.google.mlkit.vision.objects.ObjectDetector
 import com.google.mlkit.vision.objects.custom.CustomObjectDetectorOptions
-import java.util.Objects
-import kotlin.collections.List
+import java.util.*
 
 /** Live preview demo app for ML Kit APIs using CameraXSource API. */
 @KeepName
@@ -55,7 +54,7 @@ class CameraXSourceDemoActivity : AppCompatActivity(), CompoundButton.OnCheckedC
   private var previewView: PreviewView? = null
   private var graphicOverlay: GraphicOverlay? = null
   private var needUpdateGraphicOverlayImageSourceInfo = false
-  private var lensFacing: Int = CameraSourceConfig.CAMERA_FACING_BACK
+  private var lensFacing: Int = CAMERA_FACING_BACK
   private var cameraXSource: CameraXSource? = null
   private var customObjectDetectorOptions: CustomObjectDetectorOptions? = null
   private var targetResolution: Size? = null
@@ -83,11 +82,9 @@ class CameraXSourceDemoActivity : AppCompatActivity(), CompoundButton.OnCheckedC
   }
 
   override fun onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) {
-    if (lensFacing == CameraSourceConfig.CAMERA_FACING_FRONT) {
-      lensFacing = CameraSourceConfig.CAMERA_FACING_BACK
-    } else {
-      lensFacing = CameraSourceConfig.CAMERA_FACING_FRONT
-    }
+    this.lensFacing = (if (lensFacing == CAMERA_FACING_FRONT) {
+      CAMERA_FACING_BACK
+    } else CAMERA_FACING_FRONT)
     createThenStartCameraXSource()
   }
 
@@ -96,9 +93,9 @@ class CameraXSourceDemoActivity : AppCompatActivity(), CompoundButton.OnCheckedC
     if (cameraXSource != null &&
         PreferenceUtils.getCustomObjectDetectorOptionsForLivePreview(this, localModel)
           .equals(customObjectDetectorOptions) &&
-        PreferenceUtils.getCameraXTargetResolution(getApplicationContext(), lensFacing) != null &&
+        PreferenceUtils.getCameraXTargetResolution(applicationContext, lensFacing) != null &&
         (Objects.requireNonNull(
-          PreferenceUtils.getCameraXTargetResolution(getApplicationContext(), lensFacing)
+          PreferenceUtils.getCameraXTargetResolution(applicationContext, lensFacing)
         ) == targetResolution)
     ) {
       cameraXSource!!.start()
@@ -127,49 +124,45 @@ class CameraXSourceDemoActivity : AppCompatActivity(), CompoundButton.OnCheckedC
     }
     customObjectDetectorOptions =
       PreferenceUtils.getCustomObjectDetectorOptionsForLivePreview(
-        getApplicationContext(),
+        applicationContext,
         localModel
       )
     val objectDetector: ObjectDetector = ObjectDetection.getClient(customObjectDetectorOptions!!)
-    var detectionTaskCallback: DetectionTaskCallback<List<DetectedObject>> =
+    val detectionTaskCallback: DetectionTaskCallback<List<DetectedObject>> =
       DetectionTaskCallback<List<DetectedObject>> { detectionTask ->
         detectionTask
           .addOnSuccessListener { results -> onDetectionTaskSuccess(results) }
           .addOnFailureListener { e -> onDetectionTaskFailure(e) }
       }
-    val builder: CameraSourceConfig.Builder =
-      CameraSourceConfig.Builder(getApplicationContext(), objectDetector!!, detectionTaskCallback)
+    val builder: Builder =
+      Builder(applicationContext, objectDetector, detectionTaskCallback)
         .setFacing(lensFacing)
     targetResolution =
-      PreferenceUtils.getCameraXTargetResolution(getApplicationContext(), lensFacing)
+      PreferenceUtils.getCameraXTargetResolution(applicationContext, lensFacing)
     if (targetResolution != null) {
       builder.setRequestedPreviewSize(targetResolution!!.width, targetResolution!!.height)
     }
     cameraXSource = CameraXSource(builder.build(), previewView!!)
-    needUpdateGraphicOverlayImageSourceInfo = true
+    this.needUpdateGraphicOverlayImageSourceInfo = true
     cameraXSource!!.start()
   }
 
   private fun onDetectionTaskSuccess(results: List<DetectedObject>) {
     graphicOverlay!!.clear()
     if (needUpdateGraphicOverlayImageSourceInfo) {
-      val size: Size = cameraXSource!!.getPreviewSize()!!
-      if (size != null) {
-        Log.d(TAG, "preview width: " + size.width)
-        Log.d(TAG, "preview height: " + size.height)
-        val isImageFlipped =
-          cameraXSource!!.getCameraFacing() == CameraSourceConfig.CAMERA_FACING_FRONT
-        if (isPortraitMode) {
-          // Swap width and height sizes when in portrait, since it will be rotated by
-          // 90 degrees. The camera preview and the image being processed have the same size.
-          graphicOverlay!!.setImageSourceInfo(size.height, size.width, isImageFlipped)
-        } else {
-          graphicOverlay!!.setImageSourceInfo(size.width, size.height, isImageFlipped)
-        }
-        needUpdateGraphicOverlayImageSourceInfo = false
+      val size: Size = cameraXSource!!.previewSize!!
+      Log.d(TAG, "preview width: " + size.width)
+      Log.d(TAG, "preview height: " + size.height)
+      val isImageFlipped =
+        cameraXSource!!.cameraFacing == CAMERA_FACING_FRONT
+      if (isPortraitMode) {
+        // Swap width and height sizes when in portrait, since it will be rotated by
+        // 90 degrees. The camera preview and the image being processed have the same size.
+        graphicOverlay!!.setImageSourceInfo(size.height, size.width, isImageFlipped)
       } else {
-        Log.d(TAG, "previewsize is null")
+        graphicOverlay!!.setImageSourceInfo(size.width, size.height, isImageFlipped)
       }
+      needUpdateGraphicOverlayImageSourceInfo = false
     }
     Log.v(TAG, "Number of object been detected: " + results.size)
     for (`object` in results) {
@@ -184,7 +177,7 @@ class CameraXSourceDemoActivity : AppCompatActivity(), CompoundButton.OnCheckedC
     graphicOverlay!!.postInvalidate()
     val error = "Failed to process. Error: " + e.localizedMessage
     Toast.makeText(
-        graphicOverlay!!.getContext(),
+        graphicOverlay!!.context,
         """
    $error
    Cause: ${e.cause}
@@ -195,10 +188,8 @@ class CameraXSourceDemoActivity : AppCompatActivity(), CompoundButton.OnCheckedC
     Log.d(TAG, error)
   }
 
-  private val isPortraitMode: Boolean
-    private get() =
-      (getApplicationContext().getResources().getConfiguration().orientation !==
-        Configuration.ORIENTATION_LANDSCAPE)
+  private val isPortraitMode: Boolean = (applicationContext.resources.configuration.orientation !==
+          Configuration.ORIENTATION_LANDSCAPE)
 
   companion object {
     private const val TAG = "CameraXSourcePreview"
